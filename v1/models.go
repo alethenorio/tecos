@@ -31,5 +31,11 @@ type ModuleInfo struct {
 
 // FromData returns a ModuleInfo based on the given backend.ModuleData
 func FromData(m backend.ModuleData) ModuleInfo {
-	return (ModuleInfo)(m)
+	return ModuleInfo{
+		Name:        m.Name,
+		Namespace:   m.Namespace,
+		Description: m.Description,
+		PublishedAt: m.PublishedAt,
+		Version:     m.Version,
+	}
 }

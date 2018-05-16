@@ -32,3 +32,11 @@
 [[constraint]]
   name = "github.com/go-chi/chi"
   version = "3.3.2"
+
+[[constraint]]
+  name = "gopkg.in/src-d/go-git.v4"
+  version = "4.4.0"
+
+[[constraint]]
+  name = "github.com/pkg/errors"
+  version = "0.8.0"

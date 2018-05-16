@@ -4,4 +4,5 @@ package backend
 // some backend
 type Storage interface {
 	ListModules() []ModuleData
+	Cleanup()
 }
