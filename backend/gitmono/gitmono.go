@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/ByteFlinger/tecos/backend"
 	"github.com/pkg/errors"
 	git "gopkg.in/src-d/go-git.v4"
 )
@@ -21,6 +20,12 @@ type Config struct {
 	// Use a relative path from the repo root. Wildcards can be used to include
 	// several sub folders under the same folder
 	ModulePath string
+
+	// How often to check for new commits
+	PullInterval time.Duration
+
+	// Internal variables
+	ticker Ticker
 }
 
 type GitMono struct {
@@ -31,10 +36,20 @@ type GitMono struct {
 	repo       *git.Repository
 }
 
+// New returns a new gitmono.GitMono given a configuration
+// Upon creation, New will clone the given repository URL in
+// the current working directoryu and perform a periodic pull
+// on the master branch in the given time interval
 func New(config *Config) (*GitMono, error) {
 
-	// Interval to perform pull on the git repository
-	ticker := time.NewTicker(5 * time.Minute)
+	if config.PullInterval == 0 {
+		config.PullInterval = 5 * time.Minute
+	}
+
+	if config.ticker == nil {
+		config.ticker = NewTicker(config.PullInterval)
+	}
+
 	quit := make(chan struct{})
 	done := make(chan struct{})
 
@@ -49,18 +64,21 @@ func New(config *Config) (*GitMono, error) {
 	}
 
 	go func() {
-		for {
+		run := true
+		for run {
 			select {
-			case <-ticker.C:
+			case <-config.ticker.TickerChan():
 				err := w.Pull(&git.PullOptions{})
 				if err != nil && err != git.NoErrAlreadyUpToDate {
-					fmt.Fprintf(os.Stderr, `Error: Unable to pull from remote repository - "%s"`, err)
+					fmt.Fprintf(os.Stderr, "Error: Unable to pull from remote repository - \"%s\"\n", err)
 				}
+				fmt.Println("Pulled")
 			case <-quit:
-				ticker.Stop()
+				config.ticker.Stop()
 				os.RemoveAll(clonePath)
+				run = false
 				close(done)
-				return
+				break
 			}
 		}
 	}()
@@ -72,17 +90,6 @@ func New(config *Config) (*GitMono, error) {
 		doneChan:   done,
 		repo:       repo,
 	}, nil
-}
-
-func (d *GitMono) ListModules() []backend.ModuleData {
-
-	return []backend.ModuleData{}
-
-}
-
-func (d *GitMono) Cleanup() {
-	close(d.quitChan)
-	<-d.doneChan
 }
 
 func cloneRepo(path, url string) (*git.Repository, error) {
